@@ -16,8 +16,8 @@ import torch.backends.cudnn as cudnn
 import copy
 
 from torch.autograd import Variable
-from model_search_imagenet_edarts import Network
-from architect_edarts import Architect
+from model_search_imagenet import Network
+from architect import Architect
 
 
 parser = argparse.ArgumentParser("imagenet")

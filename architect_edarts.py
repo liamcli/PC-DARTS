@@ -15,7 +15,7 @@ def normalize(x, dim, min_v=1e-5):
 
 class Architect(object):
 
-  def __init__(self, model, args):
+  def __init__(self, model, criterion, args):
     self.model = model
     self.lr = args.arch_learning_rate
     self.arch_params = model._modules['module']._arch_parameters
@@ -29,22 +29,27 @@ class Architect(object):
         n_inputs += 1
     edge_scaling = torch.from_numpy(edge_scaling).cuda()
     self.edge_scaling = edge_scaling
+    self.criterion = criterion
+    self.grad_clip = args.grad_clip
 
   def step(self, input_valid, target_valid):
+    self._backward_step(input_valid, target_valid)
+    nn.utils.clip_grad_norm_(self.arch_params, self.grad_clip)
+
+    for i, p in enumerate(self.arch_params):
+        p.data.mul_(torch.exp(-self.lr * p.grad.data))
+        if i < 2:
+            p.data = normalize(p.data, -1)
+        else:
+            p.data = p.data * self.edge_scaling
+
     for p in self.arch_params:
         if p.grad is not None:
             p.grad.detach_()
             p.grad.zero_()
 
-    self._backward_step(input_valid, target_valid)
-    for i, p in enumerate(self.arch_params):
-        p.data.mul_(torch.exp(-lr * p.grad.data))
-        if i < 2:
-            p.data = normalize(p.data, -1)
-        else:
-            p.data = p.data * edge_scaling
-
   def _backward_step(self, input_valid, target_valid):
-    loss = self.model._modules['module']._loss(input_valid, target_valid)
+    logits = self.model(input_valid)
+    loss = self.criterion(logits, target_valid)
     loss.sum().backward()
 

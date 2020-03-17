@@ -39,9 +39,7 @@ parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path
 parser.add_argument('--save', type=str, default='/tmp/checkpoints/', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='random seed')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
-parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
-parser.add_argument('--arch_learning_rate', type=float, default=6e-3, help='learning rate for arch encoding')
-parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
+parser.add_argument('--arch_learning_rate', type=float, default=0.1, help='learning rate for arch encoding')
 parser.add_argument('--begin', type=int, default=35, help='batch size')
 
 parser.add_argument('--tmp_data_dir', type=str, default='/cache/', help='temp data dir')
@@ -124,7 +122,7 @@ def main():
         args.learning_rate,
         momentum=args.momentum,
         weight_decay=args.weight_decay)
-    architect = Architect(model, args)
+    architect = Architect(model, criterion, args)
     
     test_queue = torch.utils.data.DataLoader(
                         valid_data, 
@@ -144,7 +142,6 @@ def main():
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
-    #architect = Architect(model, args)
     lr=args.learning_rate
     for epoch in range(args.epochs):
         scheduler.step()
@@ -181,7 +178,6 @@ def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr,e
     top5 = utils.AvgrageMeter()
 
     for step, (input, target) in enumerate(train_queue):
-        print(step)
         model.train()
         n = input.size(0)
 
@@ -197,17 +193,18 @@ def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr,e
         input_search = input_search.cuda(non_blocking=True)
         target_search = target_search.cuda(non_blocking=True)
         
-        if epoch >=args.begin:
-            nn.utils.clip_grad_norm_(model.module.arch_parameters(), args.grad_clip)
-            architect.step(input_search, target_search)
 
-        optimizer.zero_grad()
         logits = model(input)
         loss = criterion(logits, target)
 
         loss.backward()
+
         nn.utils.clip_grad_norm_(model.module.parameters(), args.grad_clip)
         optimizer.step()
+        optimizer.zero_grad()
+
+        if epoch >=args.begin:
+            architect.step(input_search, target_search)
 
 
         prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
