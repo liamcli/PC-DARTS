@@ -200,12 +200,12 @@ class Network(nn.Module):
 
     self.alphas_normal = Variable(torch.ones(k, num_ops).cuda(), requires_grad=True)
     self.alphas_reduce = Variable(torch.ones(k, num_ops).cuda(), requires_grad=True)
-    self.alphas_normal.data = self.alphas_normal.data / num_ops
-    self.alphas_reduce.data = self.alphas_reduce.data / num_ops
+    self.alphas_normal.data.div_(num_ops)
+    self.alphas_reduce.data.div_(num_ops)
     self.betas_normal = Variable(torch.ones(k).cuda(), requires_grad=True)
     self.betas_reduce = Variable(torch.ones(k).cuda(), requires_grad=True)
-    self.betas_normal.data = self.betas_normal.data * edge_scaling
-    self.betas_reduce.data = self.betas_reduce.data * edge_scaling
+    self.betas_normal.data.mul_(edge_scaling)
+    self.betas_reduce.data.mul_(edge_scaling)
     self._arch_parameters = [
       self.alphas_normal,
       self.alphas_reduce,

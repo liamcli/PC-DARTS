@@ -38,18 +38,19 @@ class Architect(object):
 
     for i, p in enumerate(self.arch_params):
         p.data.mul_(torch.exp(-self.lr * p.grad.data))
+        print(torch.norm(p.grad.data, p=float('inf')))
         if i < 2:
-            p.data = normalize(p.data, -1)
+            p.data.clamp_(min=1e-5)
+            p.data.div_(p.data.sum(dim=-1, keepdim=True))
         else:
-            p.data = p.data * self.edge_scaling
+            p.data.mul(self.edge_scaling)
 
     for p in self.arch_params:
         if p.grad is not None:
-            p.grad.detach_()
             p.grad.zero_()
 
   def _backward_step(self, input_valid, target_valid):
     logits = self.model(input_valid)
     loss = self.criterion(logits, target_valid)
-    loss.sum().backward()
+    loss.backward()
 
