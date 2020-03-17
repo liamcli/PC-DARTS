@@ -5,6 +5,7 @@ from operations import *
 from torch.autograd import Variable
 from genotypes import PRIMITIVES
 from genotypes import Genotype
+import numpy as np
 
 def channel_shuffle(x, groups):
     batchsize, num_channels, height, width = x.data.size()
@@ -199,12 +200,12 @@ class Network(nn.Module):
 
     self.alphas_normal = Variable(torch.ones(k, num_ops).cuda(), requires_grad=True)
     self.alphas_reduce = Variable(torch.ones(k, num_ops).cuda(), requires_grad=True)
-    self.alphas_normal = self.alphas_normal / num_ops
-    self.alphas_reduce = self.alphas_reduce / num_ops
+    self.alphas_normal.data = self.alphas_normal.data / num_ops
+    self.alphas_reduce.data = self.alphas_reduce.data / num_ops
     self.betas_normal = Variable(torch.ones(k).cuda(), requires_grad=True)
-    self.betas_normal = self.betas_normal * edge_scaling
     self.betas_reduce = Variable(torch.ones(k).cuda(), requires_grad=True)
-    self.betas_reduce = self.betas_reduce * edge_scaling
+    self.betas_normal.data = self.betas_normal.data * edge_scaling
+    self.betas_reduce.data = self.betas_reduce.data * edge_scaling
     self._arch_parameters = [
       self.alphas_normal,
       self.alphas_reduce,

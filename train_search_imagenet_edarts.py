@@ -124,9 +124,7 @@ def main():
         args.learning_rate,
         momentum=args.momentum,
         weight_decay=args.weight_decay)
-    optimizer_a = torch.optim.Adam(model.module.arch_parameters(),
-               lr=args.arch_learning_rate, betas=(0.5, 0.999), 
-               weight_decay=args.arch_weight_decay)
+    architect = Architect(model, args)
     
     test_queue = torch.utils.data.DataLoader(
                         valid_data, 
@@ -160,10 +158,12 @@ def main():
         genotype = model.module.genotype()
         logging.info('genotype = %s', genotype)
         arch_param = model.module.arch_parameters()
-        logging.info(F.softmax(arch_param[0], dim=-1))
-        logging.info(F.softmax(arch_param[1], dim=-1))
+        logging.info(arch_param[0])
+        logging.info(arch_param[1])
+        logging.info(arch_param[2])
+        logging.info(arch_param[3])
         # training
-        train_acc, train_obj = train(train_queue, valid_queue, model, optimizer, optimizer_a, criterion, lr,epoch)
+        train_acc, train_obj = train(train_queue, valid_queue, model, optimizer, architect, criterion, lr,epoch)
         logging.info('Train_acc %f', train_acc)
         
         # validation
@@ -175,12 +175,13 @@ def main():
 
         #utils.save(model, os.path.join(args.save, 'weights.pt'))
 
-def train(train_queue, valid_queue, model, optimizer, optimizer_a, criterion, lr,epoch):
+def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr,epoch):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
     top5 = utils.AvgrageMeter()
 
     for step, (input, target) in enumerate(train_queue):
+        print(step)
         model.train()
         n = input.size(0)
 
@@ -197,13 +198,8 @@ def train(train_queue, valid_queue, model, optimizer, optimizer_a, criterion, lr
         target_search = target_search.cuda(non_blocking=True)
         
         if epoch >=args.begin:
-            optimizer_a.zero_grad()
-            logits = model(input_search)
-            loss_a = criterion(logits, target_search)
-            loss_a.sum().backward()
             nn.utils.clip_grad_norm_(model.module.arch_parameters(), args.grad_clip)
-            optimizer_a.step()
-        #architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+            architect.step(input_search, target_search)
 
         optimizer.zero_grad()
         logits = model(input)

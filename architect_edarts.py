@@ -18,19 +18,19 @@ class Architect(object):
   def __init__(self, model, args):
     self.model = model
     self.lr = args.arch_learning_rate
-    self.arch_params = model._arch_parameters
-    self.n_edges = sum(1 for i in range(self._steps) for n in range(2+i))
-    edge_scaling = np.zeros(k)
+    self.arch_params = model._modules['module']._arch_parameters
+    self.n_edges = sum(1 for i in range(4) for n in range(2+i))
+    edge_scaling = np.zeros(self.n_edges)
     n_inputs = 2
     ind = 0
-    for n in range(self._steps):
+    for n in range(4):
         edge_scaling[ind:ind+n_inputs] = 1./n_inputs
         ind += n_inputs
         n_inputs += 1
     edge_scaling = torch.from_numpy(edge_scaling).cuda()
     self.edge_scaling = edge_scaling
 
-  def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, unrolled):
+  def step(self, input_valid, target_valid):
     for p in self.arch_params:
         if p.grad is not None:
             p.grad.detach_()
@@ -45,6 +45,6 @@ class Architect(object):
             p.data = p.data * edge_scaling
 
   def _backward_step(self, input_valid, target_valid):
-    loss = self.model._loss(input_valid, target_valid)
-    loss.backward()
+    loss = self.model._modules['module']._loss(input_valid, target_valid)
+    loss.sum().backward()
 

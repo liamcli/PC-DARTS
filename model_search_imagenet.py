@@ -5,6 +5,7 @@ from operations import *
 from torch.autograd import Variable
 from genotypes import PRIMITIVES
 from genotypes import Genotype
+import numpy as np
 
 def channel_shuffle(x, groups):
     batchsize, num_channels, height, width = x.data.size()
