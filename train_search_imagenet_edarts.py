@@ -172,7 +172,7 @@ def main():
 
         #utils.save(model, os.path.join(args.save, 'weights.pt'))
 
-def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr,epoch):
+def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr, epoch):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
     top5 = utils.AvgrageMeter()
@@ -197,9 +197,9 @@ def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr,e
         logits = model(input)
         loss = criterion(logits, target)
 
-        loss.backward()
+        loss.sum().backward()
 
-        nn.utils.clip_grad_norm_(model.module.parameters(), args.grad_clip)
+        nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
         optimizer.zero_grad()
 
