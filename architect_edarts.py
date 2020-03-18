@@ -38,6 +38,7 @@ class Architect(object):
 
     for i, p in enumerate(self.arch_params):
         p.data.mul_(torch.exp(-self.lr * p.grad.data))
+        print(torch.norm(p.grad.data, p=float('inf')))
         if i < 2:
             p.data.clamp_(min=1e-5)
             p.data.div_(p.data.sum(dim=-1, keepdim=True))
@@ -51,5 +52,5 @@ class Architect(object):
   def _backward_step(self, input_valid, target_valid):
     logits = self.model(input_valid)
     loss = self.criterion(logits, target_valid)
-    loss.sum().backward()
+    loss.backward()
 
