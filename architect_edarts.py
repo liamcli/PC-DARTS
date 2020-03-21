@@ -20,17 +20,20 @@ class Architect(object):
     self.lr = args.arch_learning_rate
     self.arch_params = model._modules['module']._arch_parameters
     self.n_edges = sum(1 for i in range(4) for n in range(2+i))
-    edge_scaling = np.zeros(self.n_edges)
-    n_inputs = 2
-    ind = 0
-    for n in range(4):
-        edge_scaling[ind:ind+n_inputs] = 1./n_inputs
-        ind += n_inputs
-        n_inputs += 1
-    edge_scaling = torch.from_numpy(edge_scaling).cuda()
-    self.edge_scaling = edge_scaling
-    self.criterion = criterion
-    self.grad_clip = args.grad_clip
+    self.n_inputs = 2
+    self.n_nodes = 4
+
+    #edge_scaling = np.zeros(self.n_edges)
+    #n_inputs = 2
+    #ind = 0
+    #for n in range(4):
+    #    edge_scaling[ind:ind+n_inputs] = 1./n_inputs
+    #    ind += n_inputs
+    #    n_inputs += 1
+    #edge_scaling = torch.from_numpy(edge_scaling).cuda()
+    #self.edge_scaling = edge_scaling
+    #self.criterion = criterion
+    #self.grad_clip = args.grad_clip
 
   def step(self, input_valid, target_valid):
     self._backward_step(input_valid, target_valid)
@@ -43,7 +46,16 @@ class Architect(object):
             p.data.clamp_(min=1e-5)
             p.data.div_(p.data.sum(dim=-1, keepdim=True))
         else:
-            p.data.mul(self.edge_scaling)
+            node_weights = torch.zeros([self.n_edges]).cuda()
+            offset = 0
+            n_inputs = self.n_inputs
+            for i in range(self.n_nodes):
+                node_weights[offset : offset + n_inputs] = sum(
+                    p.data[offset : offset + n_inputs]
+                )
+                offset += n_inputs
+                n_inputs += 1
+            p.data = p.data / node_weights
 
     for p in self.arch_params:
         if p.grad is not None:
