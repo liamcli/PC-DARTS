@@ -8,6 +8,7 @@ import sys
 from distutils.dir_util import copy_tree
 import aws_utils
 import pickle
+import logging
 from copy import deepcopy
 
 
@@ -62,7 +63,7 @@ def save(
         "epochs": epochs,
         "rng_seed": rng_seed.get_save_states(),
         "optimizer": optimizer.state_dict(),
-        "model": model.state_dict()
+        "model": model.state_dict(),
         "arch_params": model._modules['module']._arch_parameters
     }
 
@@ -105,8 +106,16 @@ def load(folder, rng_seed, model, optimizer, s3_bucket=None):
     rng_seed.load_states(checkpoint["rng_seed"])
     model.load_state_dict(checkpoint["model"])
     optimizer.load_state_dict(checkpoint["optimizer"])
-    for i, p in enumerate(checkpoint['arch_params']):
-        model._modules['module']._arch_parameters[i] = p
+    module = model.module
+    params = [
+            module.alphas_normal,
+            module.alphas_reduce,
+            module.betas_normal,
+            module.betas_reduce,
+            ]
+    
+    for p, s in zip(params, checkpoint['arch_params']):
+        p = s
 
     logging.info("Resumed model trained for %d epochs" % epochs)
 

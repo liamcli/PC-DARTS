@@ -43,13 +43,14 @@ parser.add_argument('--seed', type=int, default=2, help='random seed')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 parser.add_argument('--arch_learning_rate', type=float, default=0.1, help='learning rate for arch encoding')
 parser.add_argument('--begin', type=int, default=35, help='batch size')
+parser.add_argument('--s3_bucket', type=str, default=None,help='aws s3_bucket')
 
 parser.add_argument('--tmp_data_dir', type=str, default='/cache/', help='temp data dir')
 parser.add_argument('--note', type=str, default='try', help='note for this run')
 
 args = parser.parse_args()
 
-args.save = '{}search-{}-{}'.format(args.save, args.note, time.strftime("%Y%m%d-%H%M%S"))
+args.save = 'search-{}-{}'.format(args.save, args.seed)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_format = '%(asctime)s %(message)s'
@@ -123,12 +124,15 @@ def main():
         momentum=args.momentum,
         weight_decay=args.weight_decay)
     architect = Architect(model, criterion, args)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, float(args.epochs), eta_min=args.learning_rate_min)
     history = []
 
     try:
         start_epochs, history = train_utils.load(
             args.save, rng_seed, model, optimizer, args.s3_bucket
         )
+        print(history)
         scheduler.last_epoch = start_epochs - 1
     except Exception as e:
         print(e)
@@ -149,11 +153,9 @@ def main():
         train_data2, batch_size=args.batch_size, shuffle=True,
         pin_memory=True, num_workers=args.workers)
 
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
     lr=args.learning_rate
-    for epoch in range(args.epochs):
+    for epoch in range(start_epochs, args.epochs):
         scheduler.step()
         current_lr = scheduler.get_lr()[0]
         logging.info('Epoch: %d lr: %e', epoch, current_lr)
@@ -180,7 +182,7 @@ def main():
             logging.info('Valid_acc %f', valid_acc)
             #logging.info('Test_acc %f', test_acc)
         history.append([p.data.cpu().numpy() for p in model.module.arch_parameters()])
-
+        logging.info("saving checkpoint")
         train_utils.save(args.save, epoch+1, rng_seed, model, optimizer, history, args.s3_bucket)
 
     if args.s3_bucket is not None:
@@ -200,44 +202,43 @@ def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr, 
     top5 = utils.AvgrageMeter()
 
     for step, (input, target) in enumerate(train_queue):
-        if step < 10:
-            model.train()
-            n = input.size(0)
+        model.train()
+        n = input.size(0)
 
-            input = input.cuda(non_blocking=True)
-            target = target.cuda(non_blocking=True)
+        input = input.cuda(non_blocking=True)
+        target = target.cuda(non_blocking=True)
 
-            # get a random minibatch from the search queue with replacement
-            try:
-                input_search, target_search = next(valid_queue_iter)
-            except:
-                valid_queue_iter = iter(valid_queue)
-                input_search, target_search = next(valid_queue_iter)
-            input_search = input_search.cuda(non_blocking=True)
-            target_search = target_search.cuda(non_blocking=True)
-            
-            optimizer.zero_grad()
+        # get a random minibatch from the search queue with replacement
+        try:
+            input_search, target_search = next(valid_queue_iter)
+        except:
+            valid_queue_iter = iter(valid_queue)
+            input_search, target_search = next(valid_queue_iter)
+        input_search = input_search.cuda(non_blocking=True)
+        target_search = target_search.cuda(non_blocking=True)
 
-            logits = model(input)
-            loss = criterion(logits, target)
+        optimizer.zero_grad()
 
-            loss.sum().backward()
+        logits = model(input)
+        loss = criterion(logits, target)
 
-            nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
-            optimizer.step()
-            optimizer.zero_grad()
+        loss.sum().backward()
 
-            if epoch >=args.begin:
-                architect.step(input_search, target_search)
+        nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+        optimizer.step()
+        optimizer.zero_grad()
+
+        if epoch >=args.begin:
+            architect.step(input_search, target_search)
 
 
-            prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-            objs.update(loss.data.item(), n)
-            top1.update(prec1.data.item(), n)
-            top5.update(prec5.data.item(), n)
+        prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
+        objs.update(loss.data.item(), n)
+        top1.update(prec1.data.item(), n)
+        top5.update(prec5.data.item(), n)
 
-            if step % args.report_freq == 0:
-                logging.info('TRAIN Step: %03d Objs: %e R1: %f R5: %f', step, objs.avg, top1.avg, top5.avg)
+        if step % args.report_freq == 0:
+            logging.info('TRAIN Step: %03d Objs: %e R1: %f R5: %f', step, objs.avg, top1.avg, top5.avg)
 
     return top1.avg, objs.avg
 

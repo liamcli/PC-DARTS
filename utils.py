@@ -114,7 +114,10 @@ def create_exp_dir(path, scripts_to_save=None):
   print('Experiment dir : {}'.format(path))
 
   if scripts_to_save is not None:
-    os.mkdir(os.path.join(path, 'scripts'))
+    scripts_path = os.path.join(path, 'scripts')
+    if os.path.exists(scripts_path):
+        shutil.rmtree(scripts_path)
+    os.mkdir(scripts_path)
     for script in scripts_to_save:
       dst_file = os.path.join(path, 'scripts', os.path.basename(script))
       shutil.copyfile(script, dst_file)
