@@ -32,8 +32,8 @@ class Architect(object):
     #    n_inputs += 1
     #edge_scaling = torch.from_numpy(edge_scaling).cuda()
     #self.edge_scaling = edge_scaling
-    #self.criterion = criterion
-    #self.grad_clip = args.grad_clip
+    self.criterion = criterion
+    self.grad_clip = args.grad_clip
 
   def step(self, input_valid, target_valid):
     self._backward_step(input_valid, target_valid)
