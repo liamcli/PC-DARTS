@@ -67,6 +67,7 @@ def main():
         logging.info('no gpu device available')
         sys.exit(1)
 
+    log = os.path.join(args.save, 'log.txt')
     if args.s3_bucket is not None:
         aws_utils.download_from_s3(log, args.s3_bucket, log)
 
