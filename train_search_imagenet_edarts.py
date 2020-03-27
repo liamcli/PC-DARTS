@@ -193,6 +193,7 @@ def train(train_queue, valid_queue, model, optimizer, architect, criterion, lr, 
         input_search = input_search.cuda(non_blocking=True)
         target_search = target_search.cuda(non_blocking=True)
         
+        optimizer.zero_grad()
 
         logits = model(input)
         loss = criterion(logits, target)
