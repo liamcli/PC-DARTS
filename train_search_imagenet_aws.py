@@ -34,10 +34,6 @@ parser.add_argument('--report_freq', type=float, default=50, help='report freque
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
 parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
 parser.add_argument('--layers', type=int, default=8, help='total number of layers')
-parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
-parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
-parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
-parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path probability')
 parser.add_argument('--save', type=str, default='/tmp/checkpoints/', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='random seed')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
@@ -46,7 +42,7 @@ parser.add_argument('--begin', type=int, default=35, help='batch size')
 parser.add_argument('--s3_bucket', type=str, default=None,help='aws s3_bucket')
 
 parser.add_argument('--tmp_data_dir', type=str, default='/cache/', help='temp data dir')
-parser.add_argument('--note', type=str, default='try', help='note for this run')
+parser.add_argument('--debug', action='store_true', default=False, help='debug code')
 
 args = parser.parse_args()
 
@@ -152,7 +148,9 @@ def main():
     valid_queue = torch.utils.data.DataLoader(
         train_data2, batch_size=args.batch_size, shuffle=True,
         pin_memory=True, num_workers=args.workers)
-
+    if args.debug:
+        train_queue = valid_queue
+        valid_queue = test_queue
 
     lr=args.learning_rate
     for epoch in range(start_epochs, args.epochs):
