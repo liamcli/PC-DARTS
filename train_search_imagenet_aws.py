@@ -190,7 +190,7 @@ def main():
 
         with open(filename, "a+") as f:
             f.write("\n")
-            f.write("{}{} = {}".format(args.method, args.seed, best_genotype))
+            f.write("{}{} = {}".format('edarts', args.seed, best_genotype))
         aws_utils.upload_to_s3(filename, args.s3_bucket, filename)
         aws_utils.upload_to_s3(log, args.s3_bucket, log)
 
